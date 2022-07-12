@@ -11,6 +11,7 @@ library(modelr)  # calculating RMSE
 library(MuMIn) # model selection
 library(plotrix)
 library(pROC) # ROC curve validation
+library(tidyr)
 library(lubridate)
 library(dplyr)
 
@@ -19,14 +20,17 @@ conflicted::conflict_prefer('filter', winner = 'dplyr')
 conflicted::conflict_prefer('summarize', winner = 'dplyr')
 conflicted::conflict_prefer('lmer', winner = 'lmerTest')
 conflicted::conflict_prefer('select', winner = 'dplyr')
+conflicted::conflict_prefer('year', winner = 'lubridate')
+conflicted::conflict_prefer('month', winner = 'lubridate')
+conflicted::conflict_prefer('day', winner = 'lubridate')
 
 # Global Options #
-options(na.action = "na.fail")
+options(na.action = 'na.fail')
 
 # Data ####
-setwd("C:\\files\\publications_academic\\in_prep\\hays_et_al_tree_defense\\final_analysis\\")
+setwd("/home/alston92/proj/uhuru_tree_demography")
 
-growth <- read.csv('xgrowth_dung.csv', na.strings = 'NA')
+growth <- read.csv('data/xgrowth_dung.csv', na.strings = 'NA')
 growth$elephants <- ifelse(growth$treatment=='OPEN', 1,0)
 growth$impala <- ifelse(growth$treatment == 'OPEN' | growth$treatment == 'MEGA',1,0)
 growth$dikdik <- ifelse(growth$treatment == 'TOTAL', 0, 1)
@@ -36,7 +40,7 @@ growth <- growth %>%
   rename(block = blockNEW) %>% 
   filter(year != 2018) #get rid of single row w/ 2018, not sure if typo or what. 
 growth$date <- lubridate::mdy(growth$date)
-rain <- read.csv('xlong_rain_yearly_avg.csv', na.strings = 'NA') 
+rain <- read.csv('data/xlong_rain_yearly_avg.csv', na.strings = 'NA') 
 rain$date <- lubridate::ymd(rain$date)
 rain$rainfall_py <- scale(rain$rainfall_py, center = F, scale = T)
 # large range causes scaling issues in some regressions, particularly logistic. Remember to rescale when interpreting/visualizing!!!
@@ -417,11 +421,11 @@ BAROvar<- BAROg %>% mutate(residuals = resid(BAROg.best)^2)
 CRDIvar<- CRDIg %>% mutate(residuals = resid(CRDIg.best)^2)
 
 # Check residuals' distribution
-graphvar<- rbind(ACBRvar, ACETvar, ACMEvar, BAROvar, CRDIvar)
-graphvar %>%
-  ggplot(aes(residuals)) +
-  geom_histogram(color = "black", fill = "grey")+
-  facet_grid(species ~ treatment)
+# graphvar<- rbind(ACBRvar, ACETvar, ACMEvar, BAROvar, CRDIvar)
+# graphvar %>%
+#   ggplot(aes(residuals)) +
+#   geom_histogram(color = "black", fill = "grey")+
+#   facet_grid(species ~ treatment)
 
 
 # ACBR Variance in Growth ####
@@ -580,15 +584,15 @@ CRDIseed<- CRDIfert %>% filter(repro == 1)
 
 # look at height distributions of trees across treatment/site combos
 dummy<-data.frame( BAROfert %>% group_by(site, treatment) %>% summarize(avg = mean(ht_t), CIup = mean(ht_t) + 1.96*(sd(ht_t)/sqrt(n())), CIlow = mean(ht_t) - 1.96*(sd(ht_t)/sqrt(n())) ) )
-ggplot(BAROfert, aes(x=ht_t)) + 
-  geom_histogram() + 
-  facet_grid( rows = vars(site), cols = vars(treatment))+
-  geom_vline(data = dummy, aes(xintercept = avg), 
-             color = 'red') +
-  geom_vline(data = dummy, aes(xintercept = CIup), 
-             color = 'black')+
-  geom_vline(data = dummy, aes(xintercept = CIlow), 
-             color = 'black')
+# ggplot(BAROfert, aes(x=ht_t)) + 
+#   geom_histogram() + 
+#   facet_grid( rows = vars(site), cols = vars(treatment))+
+#   geom_vline(data = dummy, aes(xintercept = avg), 
+#              color = 'red') +
+#   geom_vline(data = dummy, aes(xintercept = CIup), 
+#              color = 'black')+
+#   geom_vline(data = dummy, aes(xintercept = CIlow), 
+#              color = 'black')
 # only small reproductive trees (<1m) are in South, hard to say, but looks like central distributions are further to the right/taller. Almost no reproductive trees in the north
 
 
@@ -879,7 +883,7 @@ binmids_sap <- 0.5 # NB: this is a methodological change-- I am just going to as
 
 # Number of recruits at time t+1 #
 # First step, read in census dates, lengthen, as.date, replace mixed treatment vocab to be consistent w/ rest of analyses
-cendat<- data.table::fread('tree_census_dates_bestguess.csv', header = T)
+cendat<- data.table::fread('data/tree_census_dates_bestguess.csv', header = T)
 cendat_long<- reshape2::melt(cendat, id.vars = 1, measure.vars = 2:length(names(cendat)), variable.name = 'year', variable.factor = F, value.name = 'CensusDate')
 cendat_long$year<- as.numeric(as.character(cendat_long$year))
 cendat_long$CensusDate<-lubridate::dmy(cendat_long$CensusDate)
@@ -887,7 +891,7 @@ cendat_long$plot<- gsub(pattern = 'CTL', replacement = 'OPEN', cendat_long$plot)
 cendat_long$plot<- gsub(pattern = 'LMH', replacement = 'TOTAL', cendat_long$plot)
 
 # Second step, read in census data, filter to species of interest, merge w/ dates
-census<- read.csv('xtree_census_2009-2020_detailed_lab_paper_dec20.csv') %>% 
+census<- read.csv('data/xtree_census_2009-2020_detailed_lab_paper_dec20.csv') %>% 
   mutate(blockNEW = paste(site, block, sep = '')) %>% 
   select(-block) %>% 
   rename(block = blockNEW, sap = X.0.5M, c1 = X0.5_1M, combosap = X.1M, c2 = X1_2M, c3 = X2_3M, c4 = X3_4M, c5 = X.4M) 
@@ -969,7 +973,7 @@ n_adults_all <- list(n_adults_ACBR, n_adults_ACET, n_adults_ACME, n_adults_BARO,
 
 # predictor variables----- 
 # Second calculate average rainfall and animal dung for each year-site and each year-site-treatment combo to differentiate different years in matrix construction. Remember that rainfall_py is scaled. Values are cumulative rainfall for 365 days Feb 1st in each year
-rain_avg <- read.csv("xlong_rain_yearly_avg.csv", na.strings = 'NA') %>% 
+rain_avg <- read.csv("data/xlong_rain_yearly_avg.csv", na.strings = 'NA') %>% 
   mutate(date = ymd(date)) %>% 
   mutate(year = year(date), month = month(date), day = day(date)) %>% 
   filter(month == 2 & day == 1) %>% 
@@ -978,10 +982,10 @@ rain_avg <- read.csv("xlong_rain_yearly_avg.csv", na.strings = 'NA') %>%
   mutate(rainfall_py = scale(rainfall_py, center = F, scale = T))
 
 # calculate average dung in preceding year from Feb 1st. dung averaged across blocks in regression inputs, do so here too
-dung_prep<-read.csv('dung/dung_surveys_2009-2020_clean_dec2020.csv') %>%
-  select(survey:line,dikdik_old:elephant_new) %>% filter(treatment != 'OUT') %>% filter(year<2020)#NA's in 2020
-dung_prep$treatment[dung_prep$treatment=='CTL']<-'OPEN'
-dung_prep$treatment[dung_prep$treatment=='LMH']<-'TOTAL'
+dung_prep<-read.csv('data/dung_surveys_2009-2020_clean_dec2020.csv') %>%
+  select(survey:line,dikdik_old:elephant_new) %>% 
+  filter(treatment != 'OUT') %>% 
+  filter(year<2020) # NA's in 2020
 dung_prep_sum<- dung_prep %>% 
   mutate(year2 = ifelse(day>1 & month > 2, year + 1, year)) %>% 
   group_by(year2, site, block, treatment) %>%
