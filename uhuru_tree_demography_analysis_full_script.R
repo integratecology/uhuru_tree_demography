@@ -27,6 +27,10 @@ conflicted::conflict_prefer('day', winner = 'lubridate')
 # Global Options #
 options(na.action = 'na.fail')
 
+args = commandArgs(trailingOnly=TRUE)
+cpu_no <- args[1]
+print <- cpu_no
+
 # Data ####
 setwd("/home/alston92/proj/uhuru_tree_demography")
 
@@ -1070,11 +1074,11 @@ custom_predict_function <- function(forpredict, coeff, my_block){
  
 #Now run the function
 
-noreps <- 25
+noreps <- 2
 
 all_stlambdas <- array(NA, dim= c(length(vec_species), length(vec_treatment), length(vec_block), noreps))
 
-tmax <- 10000
+tmax <- 2500
 
 for (sp in 1:length(vec_species)){
   sp_name <- vec_species[sp]
@@ -1513,6 +1517,29 @@ for (v in 1:13){ # order here is:
 
 # Results ####
 # to make figures, here is how to get mean & CI on stochastic lambdas for a given treatment x species
+
+stlambda_df <- reshape2::melt(all_stlambdas)
+
+names(stlambda_df) <- c("species", "treatment", "block", "run_no", "value")
+stlambda_df$species <- dplyr::case_when(stlambda_df$species == 1 ~ "ACBR",
+                                         stlambda_df$species == 2 ~ "ACET",
+                                         stlambda_df$species == 3 ~ "ACME",
+                                         stlambda_df$species == 4 ~ "BARO",
+                                         stlambda_df$species == 5 ~ "CRDI")
+stlambda_df$treatment <- dplyr::case_when(stlambda_df$treatment == 1 ~ "TOTAL",
+                                          stlambda_df$treatment == 2 ~ "MEGA",
+                                          stlambda_df$treatment == 3 ~ "MESO",
+                                          stlambda_df$treatment == 4 ~ "OPEN")
+stlambda_df$block <- dplyr::case_when(stlambda_df$block == 1 ~ "C1",
+                                      stlambda_df$block == 2 ~ "C2",
+                                      stlambda_df$block == 3 ~ "C3",
+                                      stlambda_df$block == 4 ~ "N1",
+                                      stlambda_df$block == 5 ~ "N2",
+                                      stlambda_df$block == 6 ~ "N3",
+                                      stlambda_df$block == 7 ~ "S1",
+                                      stlambda_df$block == 8 ~ "S2",
+                                      stlambda_df$block == 9 ~ "S3")
+stlambda_df$run_no <- stlambda_df$run_no*cpu_no
  
 all_stlambdas_avrg_across_blocks <- apply(all_stlambdas, c(1,2,4), mean) # I recommend averaging stochastic lambda across blocks first
 all_stlambdas_medianCI <- apply(all_stlambdas_avrg_across_blocks, c(1,2), quantile, c(0.05/2, 0.5, 1-0.05/2)) # then calculating the mean and CI across the parameter estimates
@@ -1560,6 +1587,45 @@ diff_down <- (sweep(x= all_stlambdas.sens[,,,,,2], # repeat for perturbation dow
 # diff_down[which(is.nan(diff_down))] <- 0
 # diff_down[which(is.infinite(diff_down))] <- 0 
 
+sens_array <- (diff_up + diff_down)/2
+
+sens_df <- reshape2::melt(sens_array)
+
+names(sens_df) <- c("species", "treatment", "block", "run_no", "vital_rate", "value")
+sens_df$species <- dplyr::case_when(sens_df$species == 1 ~ "ACBR",
+                                    sens_df$species == 2 ~ "ACET",
+                                    sens_df$species == 3 ~ "ACME",
+                                    sens_df$species == 4 ~ "BARO",
+                                    sens_df$species == 5 ~ "CRDI")
+sens_df$treatment <- dplyr::case_when(sens_df$treatment == 1 ~ "TOTAL",
+                                      sens_df$treatment == 2 ~ "MEGA",
+                                      sens_df$treatment == 3 ~ "MESO",
+                                      sens_df$treatment == 4 ~ "OPEN")
+sens_df$block <- dplyr::case_when(sens_df$block == 1 ~ "C1",
+                                  sens_df$block == 2 ~ "C2",
+                                  sens_df$block == 3 ~ "C3",
+                                  sens_df$block == 4 ~ "N1",
+                                  sens_df$block == 5 ~ "N2",
+                                  sens_df$block == 6 ~ "N3",
+                                  sens_df$block == 7 ~ "S1",
+                                  sens_df$block == 8 ~ "S2",
+                                  sens_df$block == 9 ~ "S3")
+sens_df$run_no <- sens_df$run_no*cpu_no
+sens_df$vital_rate <- dplyr::case_when(sens_df$vital_rate == 1 ~ "rainfall",
+                                       sens_df$vital_rate == 2 ~ "dik-dik dung",
+                                       sens_df$vital_rate == 3 ~ "impala dung",
+                                       sens_df$vital_rate == 4 ~ "elephant dung",
+                                       sens_df$vital_rate == 5 ~ "adult survival",
+                                       sens_df$vital_rate == 6 ~ "adult growth",
+                                       sens_df$vital_rate == 7 ~ "adult res",
+                                       sens_df$vital_rate == 8 ~ "adult psp",
+                                       sens_df$vital_rate == 9 ~ "adult sp",
+                                       sens_df$vital_rate == 10 ~ "no of new saplings",
+                                       sens_df$vital_rate == 11 ~ "sapling survival",
+                                       sens_df$vital_rate == 12 ~ "sapling growth",
+                                       sens_df$vital_rate == 13 ~ "sapling res")
+
+
 sens_avrg_across_blocks <- apply( (diff_up + diff_down)/2, c(1,2,4,5), mean) # getting across-block average sensitivity; dims are species, treatment, reps, vital rates
 sens_meanCI<- apply(sens_avrg_across_blocks, c(1,2,4), quantile, c(0.05/2, 0.5, 1-0.05/2))# then calculating the median and CI on sensitivities across the parameter estimates
 # the dimensions of this should correspond to species, treatment, then vital rates 1-13
@@ -1598,6 +1664,44 @@ sens_results$vital_rate <- dplyr::case_when(sens_results$vital_rate == 1 ~ "rain
 diff_up_elas <- diff_up *sweep(all_rates2, c(1,2,3,4), all_stlambdas, "/")
 diff_down_elas <- diff_down *sweep(all_rates2, c(1,2,3,4), all_stlambdas, "/")
 
+elas_array <- (diff_up_elas + diff_down_elas)/2
+
+elas_df <- reshape2::melt(elas_array)
+
+names(elas_df) <- c("species", "treatment", "block", "run_no", "vital_rate", "value")
+elas_df$species <- dplyr::case_when(elas_df$species == 1 ~ "ACBR",
+                                    elas_df$species == 2 ~ "ACET",
+                                    elas_df$species == 3 ~ "ACME",
+                                    elas_df$species == 4 ~ "BARO",
+                                    elas_df$species == 5 ~ "CRDI")
+elas_df$treatment <- dplyr::case_when(elas_df$treatment == 1 ~ "TOTAL",
+                                      elas_df$treatment == 2 ~ "MEGA",
+                                      elas_df$treatment == 3 ~ "MESO",
+                                      elas_df$treatment == 4 ~ "OPEN")
+elas_df$block <- dplyr::case_when(elas_df$block == 1 ~ "C1",
+                                  elas_df$block == 2 ~ "C2",
+                                  elas_df$block == 3 ~ "C3",
+                                  elas_df$block == 4 ~ "N1",
+                                  elas_df$block == 5 ~ "N2",
+                                  elas_df$block == 6 ~ "N3",
+                                  elas_df$block == 7 ~ "S1",
+                                  elas_df$block == 8 ~ "S2",
+                                  elas_df$block == 9 ~ "S3")
+elas_df$run_no <- elas_df$run_no*cpu_no
+elas_df$vital_rate <- dplyr::case_when(elas_df$vital_rate == 1 ~ "rainfall",
+                                       elas_df$vital_rate == 2 ~ "dik-dik dung",
+                                       elas_df$vital_rate == 3 ~ "impala dung",
+                                       elas_df$vital_rate == 4 ~ "elephant dung",
+                                       elas_df$vital_rate == 5 ~ "adult survival",
+                                       elas_df$vital_rate == 6 ~ "adult growth",
+                                       elas_df$vital_rate == 7 ~ "adult res",
+                                       elas_df$vital_rate == 8 ~ "adult psp",
+                                       elas_df$vital_rate == 9 ~ "adult sp",
+                                       elas_df$vital_rate == 10 ~ "no of new saplings",
+                                       elas_df$vital_rate == 11 ~ "sapling survival",
+                                       elas_df$vital_rate == 12 ~ "sapling growth",
+                                       elas_df$vital_rate == 13 ~ "sapling res")
+
 elas_avrg_across_blocks <- apply( (diff_up_elas + diff_down_elas)/2, c(1,2,4,5), mean) # getting across-block average elas; dims are species, treatment, reps, vital rates
 elas_meanCI<- apply(elas_avrg_across_blocks, c(1,2,4), quantile, c(0.05/2, 0.5, 1-0.05/2))# then calculating the median and CI on elas across the parameter estimates
 # the dimensions of this should correspond to species, treatment, then vital rates 1-13
@@ -1632,8 +1736,14 @@ elas_results$vital_rate <- dplyr::case_when(elas_results$vital_rate == 1 ~ "rain
                                             elas_results$vital_rate == 12 ~ "sapling growth",
                                             elas_results$vital_rate == 13 ~ "sapling res")
 
-write.table(stlambda_results, 'results/stochastic_lambdas.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+write.table(stlambda_df, 'results/stochastic_lambdas.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
 
-write.table(sens_results, 'results/sensitivities.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+write.table(sens_df, 'results/sensitivities.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
 
-write.table(elas_results, 'results/elasticities.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+write.table(elas_df, 'results/elasticities.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+
+write.table(stlambda_results, 'results/stochastic_lambdas_check.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+
+write.table(sens_results, 'results/sensitivities_check.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
+
+write.table(elas_results, 'results/elasticities_check.csv', append=TRUE, row.names=FALSE, col.names=FALSE, sep=',')
