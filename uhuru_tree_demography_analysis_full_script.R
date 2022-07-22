@@ -12,7 +12,6 @@ library(MuMIn) # model selection
 library(plotrix)
 library(pROC) # ROC curve validation
 library(tidyr)
-library(lubridate)
 library(dplyr)
 
 conflicted::conflict_prefer('select', winner = 'dplyr')
@@ -28,8 +27,8 @@ conflicted::conflict_prefer('day', winner = 'lubridate')
 options(na.action = 'na.fail')
 
 args = commandArgs(trailingOnly=TRUE)
-cpu_no <- args[1]
-print <- cpu_no
+cpu_no <- as.numeric(args[1])
+print(cpu_no)
 
 # Data ####
 setwd("/home/alston92/proj/uhuru_tree_demography")
@@ -1074,11 +1073,11 @@ custom_predict_function <- function(forpredict, coeff, my_block){
  
 #Now run the function
 
-noreps <- 2
+noreps <- 100
 
 all_stlambdas <- array(NA, dim= c(length(vec_species), length(vec_treatment), length(vec_block), noreps))
 
-tmax <- 2500
+tmax <- 10000
 
 for (sp in 1:length(vec_species)){
   sp_name <- vec_species[sp]
@@ -1506,7 +1505,7 @@ for (v in 1:13){ # order here is:
               st_lambda <- mean(r[2000:tmax])
               all_stlambdas.sens[sp, t, b, i, v, p] <- st_lambda
             } # closes final i loop
-            print(paste(v, sp_name, t_name, #b_name, 
+            print(paste(v, sp_name, t_name, b_name, 
                         "all reps done", sep= " "))
           } #end b loop
         } #end t loop
@@ -1539,14 +1538,13 @@ stlambda_df$block <- dplyr::case_when(stlambda_df$block == 1 ~ "C1",
                                       stlambda_df$block == 7 ~ "S1",
                                       stlambda_df$block == 8 ~ "S2",
                                       stlambda_df$block == 9 ~ "S3")
-stlambda_df$run_no <- stlambda_df$run_no*cpu_no
+stlambda_df$run_no <- paste0(cpu_no,"_",stlambda_df$run_no)
  
 all_stlambdas_avrg_across_blocks <- apply(all_stlambdas, c(1,2,4), mean) # I recommend averaging stochastic lambda across blocks first
 all_stlambdas_medianCI <- apply(all_stlambdas_avrg_across_blocks, c(1,2), quantile, c(0.05/2, 0.5, 1-0.05/2)) # then calculating the mean and CI across the parameter estimates
 # the dimensions of this should correspond to species  and treatment
 
 stlambda_results <- reshape2::melt(all_stlambdas_medianCI)
-str(stlambda_results)
 
 names(stlambda_results) <- c("parameter", "species", "treatment", "value")
 stlambda_results$parameter <- dplyr::case_when(stlambda_results$parameter == "2.5%" ~ "LCL",
@@ -1610,7 +1608,7 @@ sens_df$block <- dplyr::case_when(sens_df$block == 1 ~ "C1",
                                   sens_df$block == 7 ~ "S1",
                                   sens_df$block == 8 ~ "S2",
                                   sens_df$block == 9 ~ "S3")
-sens_df$run_no <- sens_df$run_no*cpu_no
+sens_df$run_no <- paste0(cpu_no,"_",sens_df$run_no)
 sens_df$vital_rate <- dplyr::case_when(sens_df$vital_rate == 1 ~ "rainfall",
                                        sens_df$vital_rate == 2 ~ "dik-dik dung",
                                        sens_df$vital_rate == 3 ~ "impala dung",
@@ -1631,7 +1629,6 @@ sens_meanCI<- apply(sens_avrg_across_blocks, c(1,2,4), quantile, c(0.05/2, 0.5, 
 # the dimensions of this should correspond to species, treatment, then vital rates 1-13
 
 sens_results <- reshape2::melt(sens_meanCI)
-str(sens_results)
 
 names(sens_results) <- c("parameter", "species", "treatment", "vital_rate", "value")
 sens_results$parameter <- dplyr::case_when(sens_results$parameter == "2.5%" ~ "LCL",
@@ -1687,7 +1684,7 @@ elas_df$block <- dplyr::case_when(elas_df$block == 1 ~ "C1",
                                   elas_df$block == 7 ~ "S1",
                                   elas_df$block == 8 ~ "S2",
                                   elas_df$block == 9 ~ "S3")
-elas_df$run_no <- elas_df$run_no*cpu_no
+elas_df$run_no <- paste0(cpu_no,"_",elas_df$run_no)
 elas_df$vital_rate <- dplyr::case_when(elas_df$vital_rate == 1 ~ "rainfall",
                                        elas_df$vital_rate == 2 ~ "dik-dik dung",
                                        elas_df$vital_rate == 3 ~ "impala dung",
@@ -1707,7 +1704,6 @@ elas_meanCI<- apply(elas_avrg_across_blocks, c(1,2,4), quantile, c(0.05/2, 0.5, 
 # the dimensions of this should correspond to species, treatment, then vital rates 1-13
 
 elas_results <- reshape2::melt(elas_meanCI)
-str(elas_results)
 
 names(elas_results) <- c("parameter", "species", "treatment", "vital_rate", "value")
 elas_results$parameter <- dplyr::case_when(elas_results$parameter == "2.5%" ~ "LCL",

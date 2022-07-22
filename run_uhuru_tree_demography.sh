@@ -6,10 +6,10 @@
 #SBATCH --ntasks-per-node=1        # number of tasks (i.e. parallel processes) to be started
 #SBATCH --cpus-per-task=1          # number of cpus required to run the script
 #SBATCH --mem-per-cpu=4G	   # memory required for process
-#SBATCH --array=1-2%2    	   # set number of total simulations and number that can run simultaneously	  
+#SBATCH --array=1-100%100    	   # set number of total simulations and number that can run simultaneously	  
 
 
-module load gcc
+module load gcc/9.2.0
 module load R
 
 cd /home/alston92/proj/uhuru_tree_demography   # where executable and data is located
@@ -37,6 +37,7 @@ if [ -f results/elasticities.csv ]; then
 else
         echo "creating results file for stochastic lambdas"
         echo "species,treatment,block,run_no,vital_rate,value" > results/elasticities.csv
+fi
 
 if [ -f results/stochastic_lambdas_check.csv ]; then
 	echo "Results file already exists! continuing..."
